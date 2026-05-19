@@ -59,7 +59,7 @@ if st.button("Predict Price"):
     }
 
     response = requests.post(
-        "http://127.0.0.1:8000/predict",
+        "https://mlops-real-estate-predictor.onrender.com/predict",
         json=payload
     )
 
