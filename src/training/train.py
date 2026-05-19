@@ -1,13 +1,13 @@
 import pandas as pd
 import joblib
+import mlflow
+import mlflow.sklearn
 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error, r2_score
 
 from xgboost import XGBRegressor
 
-import sys
-sys.path.append("../")
 from src.preprocessing.pipeline import create_pipeline
 
 
@@ -51,32 +51,50 @@ X_train_processed = preprocessor.fit_transform(X_train)
 X_test_processed = preprocessor.transform(X_test)
 
 
-# Train model
-model = XGBRegressor(
-    n_estimators=100,
-    learning_rate=0.05,
-    max_depth=6,
-    random_state=42
+# MLflow experiment
+mlflow.set_experiment("Real Estate Price Prediction")
+
+
+with mlflow.start_run():
+
+    # Model parameters
+    params = {
+        "n_estimators": 300,
+        "learning_rate": 0.01,
+        "max_depth": 8,
+        "random_state": 42
+    }
+
+    # Log parameters
+    mlflow.log_params(params)
+
+    # Train model
+    model = XGBRegressor(**params)
+
+    model.fit(X_train_processed, y_train)
+
+    # Predictions
+    predictions = model.predict(X_test_processed)
+
+    # Metrics
+    mae = mean_absolute_error(y_test, predictions)
+    r2 = r2_score(y_test, predictions)
+
+    print(f"MAE: {mae}")
+    print(f"R2 Score: {r2}")
+
+    # Log metrics
+    mlflow.log_metric("mae", mae)
+    mlflow.log_metric("r2_score", r2)
+
+    # Save artifacts
+    joblib.dump(model, "models/xgboost_model.pkl")
+    joblib.dump(preprocessor, "models/preprocessor.pkl")
+
+    # Log model
+    mlflow.sklearn.log_model(
+    sk_model=model,
+    name="xgboost-model"
 )
 
-model.fit(X_train_processed, y_train)
-
-
-# Predictions
-predictions = model.predict(X_test_processed)
-
-
-# Evaluation
-mae = mean_absolute_error(y_test, predictions)
-r2 = r2_score(y_test, predictions)
-
-print(f"MAE: {mae}")
-print(f"R2 Score: {r2}")
-
-
-# Save model
-joblib.dump(model, "models/xgboost_model.pkl")
-joblib.dump(preprocessor, "models/preprocessor.pkl")
-
-
-print("Model and preprocessor saved successfully.")
+    print("Model tracking complete.")
